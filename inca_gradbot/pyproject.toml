@@ -1,0 +1,8 @@
+[project]
+name = "inca-gradbot"
+version = "0.1.0"
+description = "INCA Track FNOL voice agent built with Gradbot"
+requires-python = ">=3.12"
+dependencies = [
+    "gradbot==0.1.6",
+]

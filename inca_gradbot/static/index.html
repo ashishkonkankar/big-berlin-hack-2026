@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INCA Track Voice Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,500&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #fbfbfa;
+      --panel: #f4f3f1;
+      --panel-2: #eeece8;
+      --ink: #111111;
+      --muted: #74716b;
+      --hairline: #dedbd4;
+      --accent: #c17f3e;
+      --danger: #a94442;
+      --ok: #2f6b4f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Karla", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(260px, 0.82fr) minmax(340px, 1.15fr) minmax(260px, 0.82fr);
+      grid-template-rows: 1fr auto;
+    }
+
+    .panel {
+      padding: 28px;
+      background: var(--panel);
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .panel.left { border-right: 1px solid var(--hairline); }
+    .panel.right { border-left: 1px solid var(--hairline); }
+
+    .center {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 28px 34px 24px;
+      background: var(--paper);
+    }
+
+    .label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 34px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .brand span,
+    .status {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .identity,
+    .record {
+      display: grid;
+      gap: 13px;
+      margin-bottom: 34px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 118px 1fr;
+      gap: 14px;
+      align-items: baseline;
+      min-height: 20px;
+    }
+
+    .row b {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .row span {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      opacity: 1;
+      transition: color 250ms ease, opacity 250ms ease;
+    }
+
+    .row span.empty { color: #a7a29a; }
+    .row span.flash { color: var(--accent); opacity: 0.2; }
+
+    .phases {
+      display: grid;
+      gap: 12px;
+    }
+
+    .phase {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      line-height: 1.3;
+      transition: color 220ms ease, opacity 220ms ease;
+    }
+
+    .phase i {
+      font-style: normal;
+      color: #aaa49b;
+    }
+
+    .phase.active,
+    .phase.active i { color: var(--accent); }
+
+    .phase.done { opacity: 0.45; }
+
+    .orb-stage {
+      flex: 0 0 315px;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    .orb {
+      width: 152px;
+      height: 152px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 42% 35%, rgba(255,255,255,0.98), rgba(242,239,234,0.92) 44%, rgba(205,198,189,0.6) 100%);
+      box-shadow:
+        inset 0 0 18px rgba(255,255,255,0.95),
+        inset 0 -22px 36px rgba(0,0,0,0.08),
+        0 18px 55px rgba(17,17,17,0.12);
+      transform: scale(1);
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .orb.agent {
+      animation: pulse 820ms ease-in-out infinite alternate;
+      box-shadow:
+        inset 0 0 22px rgba(255,255,255,0.96),
+        inset 0 -24px 40px rgba(193,127,62,0.12),
+        0 0 0 10px rgba(193,127,62,0.08),
+        0 26px 70px rgba(193,127,62,0.2);
+    }
+
+    .orb.user {
+      box-shadow:
+        inset 0 0 20px rgba(255,255,255,0.95),
+        inset 0 -20px 34px rgba(0,0,0,0.06),
+        0 0 0 10px rgba(47,107,79,0.08),
+        0 22px 62px rgba(47,107,79,0.16);
+    }
+
+    @keyframes pulse {
+      from { transform: scale(0.985); }
+      to { transform: scale(1.08); }
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      background: var(--ink);
+      color: #fff;
+      padding: 12px 18px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      min-height: 42px;
+    }
+
+    button.secondary {
+      background: var(--panel-2);
+      color: var(--ink);
+    }
+
+    button:disabled {
+      opacity: 0.42;
+      cursor: default;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    input[type="checkbox"] { accent-color: var(--accent); }
+
+    .speed {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    input[type="range"] {
+      width: 90px;
+      accent-color: var(--accent);
+    }
+
+    .transcript {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+
+    .line {
+      margin: 0 0 16px;
+      line-height: 1.35;
+      font-family: "Fraunces", Georgia, serif;
+      font-style: italic;
+      font-size: clamp(20px, 2.6vw, 30px);
+      color: var(--ink);
+    }
+
+    .line.agent { color: var(--accent); }
+
+    .speaker {
+      display: block;
+      margin-bottom: 5px;
+      font-family: "IBM Plex Mono", monospace;
+      font-style: normal;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .bar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 13px 28px;
+      background: #111;
+      color: #fff;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      min-height: 48px;
+    }
+
+    .bar span:last-child {
+      color: var(--accent);
+      text-align: right;
+    }
+
+    @media (max-width: 940px) {
+      .shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto auto;
+      }
+
+      .panel.left,
+      .panel.right {
+        border: 0;
+        border-bottom: 1px solid var(--hairline);
+      }
+
+      .center {
+        min-height: 600px;
+        order: -1;
+      }
+
+      .bar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <aside class="panel left">
+      <div class="brand">
+        <h1>INCA TRACK</h1>
+        <span>FNOL</span>
+      </div>
+
+      <p class="label">POLICYHOLDER</p>
+      <section class="identity">
+        <div class="row"><b>Name</b><span data-field="policyholder" class="empty">-</span></div>
+        <div class="row"><b>Policy</b><span data-field="policy_number" class="empty">-</span></div>
+        <div class="row"><b>Vehicle</b><span data-field="vehicle" class="empty">-</span></div>
+        <div class="row"><b>Coverage</b><span data-field="coverage" class="empty">-</span></div>
+      </section>
+
+      <p class="label">CALL PHASE</p>
+      <section class="phases" id="phases">
+        <div class="phase active" data-phase="1"><i>1</i><span>Safety and Presence</span></div>
+        <div class="phase" data-phase="2"><i>2</i><span>Story and Listening</span></div>
+        <div class="phase" data-phase="3"><i>3</i><span>Photo Evidence</span></div>
+        <div class="phase" data-phase="4"><i>4</i><span>Information Gathering</span></div>
+        <div class="phase" data-phase="B"><i>B</i><span>Callback Path</span></div>
+        <div class="phase" data-phase="6"><i>6</i><span>Close</span></div>
+      </section>
+    </aside>
+
+    <section class="center">
+      <p class="label">REALTIME VOICE ACTIVITY</p>
+      <div class="orb-stage">
+        <div class="orb" id="orb" aria-hidden="true"></div>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn">Start Call</button>
+        <button id="stopBtn" class="secondary" disabled>End Call</button>
+        <label class="toggle"><input id="echoToggle" type="checkbox" checked> Echo cancellation</label>
+        <label class="speed">Speed <input id="speed" type="range" min="0.75" max="1.1" step="0.05" value="0.9"><span id="speedValue">0.90</span></label>
+      </div>
+
+      <p class="status" id="status">Ready. Microphone permission will be requested when the call starts.</p>
+
+      <div class="transcript" id="transcript" aria-live="polite"></div>
+    </section>
+
+    <aside class="panel right">
+      <p class="label">CLAIM RECORD</p>
+      <section class="record">
+        <div class="row"><b>Time</b><span data-field="time_of_incident" class="empty">-</span></div>
+        <div class="row"><b>Location</b><span data-field="location" class="empty">-</span></div>
+        <div class="row"><b>Damage</b><span data-field="damage_description" class="empty">-</span></div>
+        <div class="row"><b>Other party</b><span data-field="other_party" class="empty">-</span></div>
+        <div class="row"><b>Injury</b><span data-field="injury_noted" class="empty">-</span></div>
+        <div class="row"><b>Photos</b><span data-field="photos_received" class="empty">-</span></div>
+        <div class="row"><b>Police</b><span data-field="police_report" class="empty">-</span></div>
+        <div class="row"><b>Status</b><span data-field="claim_complete" class="empty">-</span></div>
+      </section>
+    </aside>
+
+    <footer class="bar">
+      <span>AGENT STATE</span>
+      <span id="agentState">Call ready</span>
+    </footer>
+  </main>
+
+  <script src="static/js/opus-encoder.js"></script>
+  <script src="static/js/audio-processor.js"></script>
+  <script src="static/js/synced-audio-player.js"></script>
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const echoToggle = document.getElementById('echoToggle');
+    const speed = document.getElementById('speed');
+    const speedValue = document.getElementById('speedValue');
+    const statusEl = document.getElementById('status');
+    const orb = document.getElementById('orb');
+    const transcript = document.getElementById('transcript');
+    const agentState = document.getElementById('agentState');
+
+    let ws = null;
+    let player = null;
+    let isRecording = false;
+    let turnNodes = {};
+    let callerDraftNode = null;
+    let callerDraftTimer = 0;
+
+    speed.addEventListener('input', () => {
+      speedValue.textContent = Number(speed.value).toFixed(2);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'config', speed: parseFloat(speed.value) }));
+      }
+    });
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setOrb(mode) {
+      orb.classList.remove('agent', 'user');
+      if (mode) orb.classList.add(mode);
+    }
+
+    function renderField(name, value) {
+      const el = document.querySelector(`[data-field="${name}"]`);
+      if (!el) return;
+      const display = value === true ? 'CLAIM COMPLETE' : value === false ? '-' : value;
+      const next = (display === undefined || display === null || display === '' || display === 0) ? '-' : String(display);
+      if (el.textContent === next) return;
+      el.classList.add('flash');
+      el.textContent = next;
+      el.classList.toggle('empty', next === '-');
+      requestAnimationFrame(() => setTimeout(() => el.classList.remove('flash'), 220));
+    }
+
+    function renderState(state) {
+      if (!state) return;
+      for (const key of [
+        'policyholder', 'policy_number', 'vehicle', 'coverage',
+        'time_of_incident', 'location', 'damage_description', 'other_party',
+        'injury_noted', 'photos_received', 'police_report', 'claim_complete'
+      ]) {
+        renderField(key, state[key]);
+      }
+      if (state.agent_state) agentState.textContent = state.agent_state;
+      renderPhase(state.phase || '');
+    }
+
+    function renderPhase(phase) {
+      const key = String(phase).trim().charAt(0).toUpperCase() || '1';
+      const order = ['1', '2', '3', '4', 'B', '6'];
+      const activeIndex = Math.max(0, order.indexOf(key));
+      document.querySelectorAll('.phase').forEach((el) => {
+        const idx = order.indexOf(el.dataset.phase);
+        el.classList.toggle('active', idx === activeIndex);
+        el.classList.toggle('done', idx >= 0 && idx < activeIndex && key !== 'B');
+      });
+    }
+
+    function getLineNode(key, speaker, className) {
+      let node = turnNodes[key];
+      if (!node) {
+        node = document.createElement('p');
+        node.className = `line ${className}`;
+        node.innerHTML = `<span class="speaker">${speaker}</span><span class="words"></span>`;
+        turnNodes[key] = node;
+        transcript.appendChild(node);
+      }
+      return node;
+    }
+
+    function closeCallerDraft() {
+      callerDraftNode = null;
+      window.clearTimeout(callerDraftTimer);
+      callerDraftTimer = 0;
+    }
+
+    function addText({ text, turnIdx, isUser }) {
+      const prefix = isUser ? 'CALLER' : 'AGENT';
+      let node;
+
+      if (isUser && (turnIdx === undefined || turnIdx === null)) {
+        if (!callerDraftNode) {
+          const key = `u-draft-${Date.now()}`;
+          callerDraftNode = getLineNode(key, prefix, 'caller');
+        }
+        node = callerDraftNode;
+        window.clearTimeout(callerDraftTimer);
+        callerDraftTimer = window.setTimeout(closeCallerDraft, 2200);
+      } else {
+        if (!isUser) closeCallerDraft();
+        const key = `${isUser ? 'u' : 'a'}-${turnIdx ?? Date.now()}`;
+        node = getLineNode(key, prefix, isUser ? 'caller' : 'agent');
+      }
+
+      node.querySelector('.words').textContent += `${text} `;
+      transcript.scrollTop = transcript.scrollHeight;
+      setOrb(isUser ? 'user' : 'agent');
+      window.clearTimeout(node._orbTimeout);
+      node._orbTimeout = window.setTimeout(() => setOrb(null), isUser ? 700 : 1100);
+    }
+
+    function handleWireMessage(raw) {
+      if (!raw || typeof raw !== 'object') return;
+      if (raw.state) renderState(raw.state);
+      if (raw.type === 'error') setStatus(raw.message || 'Voice session error');
+      if (raw.type === 'event') {
+        if (raw.event === 'push_to_llm' || raw.event === 'llm_started' || raw.event === 'interrupted') {
+          closeCallerDraft();
+        }
+        if (raw.event === 'photo_link_sent') agentState.textContent = 'SMS sent - photo link';
+        if (raw.event === 'callback_requested') agentState.textContent = 'Callback path triggered';
+        if (raw.event === 'claim_complete') agentState.textContent = 'CLAIM COMPLETE';
+      }
+    }
+
+    async function startCall() {
+      startBtn.disabled = true;
+      transcript.innerHTML = '';
+      turnNodes = {};
+      setStatus('Requesting microphone permission...');
+
+      try {
+        const audioConfig = await fetch('api/audio-config').then((r) => r.json()).catch(() => ({ pcm: false }));
+        player = new SyncedAudioPlayer({
+          basePath: 'static/js',
+          sampleRate: 24000,
+          pcmOutput: audioConfig.pcm || false,
+          echoCancellation: echoToggle.checked,
+          onEncodedAudio: (opusData) => {
+            if (isRecording && ws && ws.readyState === WebSocket.OPEN) ws.send(opusData);
+          },
+          onText: addText,
+          onEvent: (eventType, msg) => handleWireMessage(msg || { type: 'event', event: eventType }),
+          onError: (error) => {
+            console.error(error);
+            setStatus(error.message || 'Audio error');
+          },
+        });
+        await player.start();
+      } catch (error) {
+        console.error(error);
+        setStatus('Microphone permission was not granted. Use the browser permission icon and allow microphone access.');
+        startBtn.disabled = false;
+        return;
+      }
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const basePath = window.location.pathname.replace(/\/$/, '');
+      ws = new WebSocket(`${protocol}//${window.location.host}${basePath}/ws/chat`);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'start', speed: parseFloat(speed.value) }));
+        isRecording = true;
+        stopBtn.disabled = false;
+        setStatus('Connected. Speak normally - interruption is supported.');
+      };
+
+      ws.onmessage = async (event) => {
+        if (event.data instanceof Blob) {
+          await player.handleMessage(event.data);
+          return;
+        }
+
+        try {
+          const msg = JSON.parse(event.data);
+          handleWireMessage(msg);
+          await player.handleMessage(event.data);
+        } catch (error) {
+          console.error(error);
+        }
+      };
+
+      ws.onclose = () => stopCall(false);
+      ws.onerror = () => setStatus('Voice websocket error');
+    }
+
+    function stopCall(sendStop = true) {
+      isRecording = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      setOrb(null);
+      setStatus('Call ended');
+      if (sendStop && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'stop' }));
+      }
+      if (ws) ws.close();
+      ws = null;
+      if (player) player.stop();
+      player = null;
+    }
+
+    startBtn.addEventListener('click', startCall);
+    stopBtn.addEventListener('click', () => stopCall(true));
+
+    fetch('api/claim-start').then((r) => r.json()).then((data) => renderState(data.state)).catch(() => {});
+  </script>
+</body>
+</html>

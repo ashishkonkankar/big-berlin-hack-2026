@@ -1,0 +1,1479 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>INCA Claims Mission Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,300;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=Karla:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f6f6f4;
+        --panel: #fbfbf9;
+        --panel-soft: #f2f2ef;
+        --text: #151515;
+        --muted: #7a7a7a;
+        --amber: #c17f3e;
+        --flag: #9a6d6d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      body {
+        font-family: "Karla", sans-serif;
+        letter-spacing: 0;
+      }
+
+      .app {
+        height: 100vh;
+        display: grid;
+        grid-template-columns: minmax(280px, 24vw) 1fr minmax(320px, 27vw);
+        grid-template-rows: 1fr;
+        gap: 14px;
+        padding: 14px;
+      }
+
+      .panel {
+        min-width: 0;
+        height: 100%;
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .zone {
+        background: var(--panel);
+        padding: 14px 16px 14px 16px;
+        overflow: hidden;
+      }
+
+      .zone.soft {
+        background: var(--panel-soft);
+      }
+
+      .label {
+        margin: 0 0 14px 0;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .kv {
+        display: grid;
+        grid-template-columns: 145px 1fr;
+        gap: 7px 12px;
+        align-items: baseline;
+      }
+
+      .kv-key {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .kv-val {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 14px;
+        color: var(--text);
+        opacity: 0.42;
+        transition: opacity 420ms ease;
+      }
+
+      .kv-val.filled {
+        opacity: 1;
+        animation: softIn 480ms ease;
+      }
+
+      .phases {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+      }
+
+      .phase {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13px;
+        color: #8f8f8f;
+        opacity: 0.86;
+        transition: color 260ms ease, opacity 260ms ease;
+      }
+
+      .phase.active {
+        color: var(--amber);
+        opacity: 1;
+      }
+
+      .phase.complete {
+        color: #b2b2b2;
+        opacity: 0.62;
+      }
+
+      .center {
+        min-width: 0;
+        height: 100%;
+        display: grid;
+        grid-template-rows: 1fr minmax(260px, 42vh) 44px;
+        gap: 14px;
+      }
+
+      .orb-stage {
+        background: var(--panel);
+        display: grid;
+        place-items: center;
+        min-height: 260px;
+      }
+
+      .orb-wrap {
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+      }
+
+      .orb {
+        width: clamp(110px, 13vw, 160px);
+        aspect-ratio: 1;
+        background: radial-gradient(circle at 50% 40%, #ffffff 0%, #efece6 45%, #e5dfd2 100%);
+        position: relative;
+        transition: transform 220ms ease;
+      }
+
+      .orb::before,
+      .orb::after {
+        content: "";
+        position: absolute;
+        inset: -16px;
+        background: radial-gradient(circle, rgba(193, 127, 62, 0.18), rgba(193, 127, 62, 0.02) 70%);
+        opacity: 0;
+        transform: scale(0.92);
+      }
+
+      .orb.speaking {
+        animation: orbPulse 1100ms ease-in-out infinite;
+      }
+
+      .orb.speaking::before,
+      .orb.speaking::after {
+        animation: ringPulse 1400ms ease-out infinite;
+      }
+
+      .orb.speaking::after {
+        animation-delay: 480ms;
+      }
+
+      .orb-label {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .voice-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .voice-button {
+        appearance: none;
+        border: 0;
+        background: var(--text);
+        color: var(--panel);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        padding: 9px 12px;
+        cursor: pointer;
+        text-transform: uppercase;
+      }
+
+      .voice-button.listening {
+        background: var(--amber);
+      }
+
+      .voice-button:disabled {
+        background: #d2d2cf;
+        color: #8a8a86;
+        cursor: default;
+      }
+
+      .transcript {
+        height: calc(100% - 20px);
+        overflow-y: auto;
+        padding-right: 6px;
+        background: var(--panel);
+        padding: 14px 16px;
+      }
+
+      .line {
+        margin: 0 0 11px 0;
+        line-height: 1.35;
+        animation: softIn 320ms ease;
+      }
+
+      .speaker {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        margin-right: 8px;
+        text-transform: uppercase;
+      }
+
+      .speaker.agent {
+        color: var(--amber);
+      }
+
+      .speaker.caller {
+        color: #717171;
+      }
+
+      .text {
+        font-family: "Fraunces", serif;
+        font-style: italic;
+        font-size: 17px;
+        color: #111111;
+      }
+
+      .text.agent {
+        color: #8e5b29;
+      }
+
+      .flag {
+        display: inline-block;
+        margin-left: 8px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+        color: var(--flag);
+        text-transform: uppercase;
+      }
+
+      .claim-complete {
+        margin-top: 16px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 15px;
+        color: var(--amber);
+        opacity: 0;
+        transition: opacity 420ms ease;
+      }
+
+      .claim-complete.show {
+        opacity: 1;
+      }
+
+      .statebar {
+        background: var(--panel-soft);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: #6f6f6f;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .statebar strong {
+        color: var(--amber);
+        font-weight: 500;
+        margin-right: 8px;
+      }
+
+      @keyframes softIn {
+        from {
+          opacity: 0;
+          transform: translateY(2px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes orbPulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.08);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      @keyframes ringPulse {
+        0% {
+          opacity: 0.36;
+          transform: scale(0.8);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.22);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <aside class="panel">
+        <section class="zone soft">
+          <p class="label">Policyholder</p>
+          <div class="kv" id="policyholder-card">
+            <div class="kv-key">Caller Name</div><div class="kv-val" data-id="name">-</div>
+            <div class="kv-key">Policy Number</div><div class="kv-val" data-id="policy">-</div>
+            <div class="kv-key">Vehicle</div><div class="kv-val" data-id="vehicle">-</div>
+            <div class="kv-key">Coverage</div><div class="kv-val" data-id="coverage">-</div>
+          </div>
+        </section>
+        <section class="zone">
+          <p class="label">Call Phase</p>
+          <ol class="phases" id="phase-list">
+            <li class="phase active">1 Safety &amp; Presence</li>
+            <li class="phase">2 Story &amp; Listening</li>
+            <li class="phase">3 Photo Evidence</li>
+            <li class="phase">4 Information Gathering</li>
+            <li class="phase">B Callback</li>
+            <li class="phase">6 Close</li>
+          </ol>
+        </section>
+      </aside>
+
+      <section class="center">
+        <section class="orb-stage">
+          <div class="orb-wrap">
+            <div class="orb" id="voice-orb" aria-label="Voice activity orb"></div>
+            <div class="orb-label">Realtime Voice Activity</div>
+            <div class="voice-controls">
+              <button class="voice-button" id="voice-toggle" type="button">Start Call</button>
+              <span id="voice-status">ASR idle</span>
+            </div>
+          </div>
+        </section>
+        <section>
+          <p class="label">Live Transcript</p>
+          <div class="transcript" id="transcript"></div>
+        </section>
+        <footer class="statebar" id="statebar">
+          <strong>AGENT STATE</strong>
+          <span>Call connected — establishing presence</span>
+        </footer>
+      </section>
+
+      <aside class="panel">
+        <section class="zone soft">
+          <p class="label">Claim Record</p>
+          <div class="kv" id="claim-card">
+            <div class="kv-key">Time of incident</div><div class="kv-val" data-claim="time">-</div>
+            <div class="kv-key">Location</div><div class="kv-val" data-claim="location">-</div>
+            <div class="kv-key">Damage description</div><div class="kv-val" data-claim="damage">-</div>
+            <div class="kv-key">Other party</div><div class="kv-val" data-claim="otherParty">-</div>
+            <div class="kv-key">Injury noted</div><div class="kv-val" data-claim="injury">-</div>
+            <div class="kv-key">Photos received</div><div class="kv-val" data-claim="photos">-</div>
+            <div class="kv-key">Police report</div><div class="kv-val" data-claim="police">-</div>
+          </div>
+          <div class="claim-complete" id="claim-complete">CLAIM COMPLETE</div>
+        </section>
+        <section class="zone">
+          <p class="label">Session Notes</p>
+          <div class="kv">
+            <div class="kv-key">Gradium voice</div><div class="kv-val filled">Daniel · apU2CMobTyu92tZj</div>
+            <div class="kv-key">Turn timing</div><div class="kv-val filled">900ms endpointing</div>
+            <div class="kv-key">Empathy pause</div><div class="kv-val filled">800–1200ms pre-response</div>
+            <div class="kv-key">Confidence gate</div><div class="kv-val filled">Reflect-back below 0.75</div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <script>
+      const transcriptEl = document.getElementById("transcript");
+      const phaseEls = [...document.querySelectorAll(".phase")];
+      const statebarEl = document.getElementById("statebar").querySelector("span");
+      const claimCompleteEl = document.getElementById("claim-complete");
+      const voiceOrbEl = document.getElementById("voice-orb");
+      const voiceToggleEl = document.getElementById("voice-toggle");
+      const voiceStatusEl = document.getElementById("voice-status");
+
+      const policyEls = {
+        name: document.querySelector('[data-id="name"]'),
+        policy: document.querySelector('[data-id="policy"]'),
+        vehicle: document.querySelector('[data-id="vehicle"]'),
+        coverage: document.querySelector('[data-id="coverage"]')
+      };
+
+      const claimEls = {
+        time: document.querySelector('[data-claim="time"]'),
+        location: document.querySelector('[data-claim="location"]'),
+        damage: document.querySelector('[data-claim="damage"]'),
+        otherParty: document.querySelector('[data-claim="otherParty"]'),
+        injury: document.querySelector('[data-claim="injury"]'),
+        photos: document.querySelector('[data-claim="photos"]'),
+        police: document.querySelector('[data-claim="police"]')
+      };
+
+      const voiceProfile = {
+        enabled: true,
+        provider: "gradium",
+        voiceId: "apU2CMobTyu92tZj",
+        voiceName: "Daniel",
+        rate: 0.9,
+        pitch: 0.82,
+        volume: 1,
+        lang: "en-GB",
+        endpointingMs: 900,
+        empathyPauseMinMs: 800,
+        empathyPauseMaxMs: 1200,
+        questionPauseMs: 400
+      };
+
+      let micActive = false;
+      let finalTranscriptBuffer = "";
+      let manualLiveMode = false;
+      let conversationMemory = {};
+      let asrSocket = null;
+      let mediaStream = null;
+      let audioContext = null;
+      let micSource = null;
+      let audioProcessor = null;
+      let pendingAsrText = "";
+      let agentSpeaking = false;
+
+      function randomIn(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function empathyLike(text) {
+        return /terrifying|shaking|right here|take your time|i hear you|i'm here/i.test(text);
+      }
+
+      function orbSpeakFor(ms) {
+        voiceOrbEl.classList.add("speaking");
+        clearTimeout(orbSpeakFor.timer);
+        orbSpeakFor.timer = setTimeout(() => {
+          voiceOrbEl.classList.remove("speaking");
+        }, ms);
+      }
+
+      async function speakAgent(text) {
+        if (!voiceProfile.enabled) return;
+        const prePause = empathyLike(text)
+          ? randomIn(voiceProfile.empathyPauseMinMs, voiceProfile.empathyPauseMaxMs)
+          : 0;
+        const postPause = text.trim().endsWith("?") ? voiceProfile.questionPauseMs : 0;
+        await new Promise((resolve) => setTimeout(resolve, prePause + postPause));
+
+        try {
+          agentSpeaking = true;
+          setVoiceStatus("Gradium TTS");
+          const response = await fetch("/gradium/tts", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ text })
+          });
+
+          if (!response.ok) {
+            agentSpeaking = false;
+            setVoiceStatus("TTS error");
+            setState(`Gradium TTS failed — ${await response.text()}`);
+            return;
+          }
+
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audio.onplay = () => {
+            agentSpeaking = true;
+            orbSpeakFor(99999);
+            setVoiceStatus("Speaking");
+          };
+          audio.onended = () => {
+            agentSpeaking = false;
+            voiceOrbEl.classList.remove("speaking");
+            URL.revokeObjectURL(url);
+            if (micActive) setVoiceStatus("Listening");
+          };
+          audio.onerror = () => {
+            agentSpeaking = false;
+            voiceOrbEl.classList.remove("speaking");
+            URL.revokeObjectURL(url);
+            setVoiceStatus("Audio error");
+          };
+          await audio.play();
+        } catch (error) {
+          agentSpeaking = false;
+          voiceOrbEl.classList.remove("speaking");
+          setVoiceStatus("TTS error");
+          setState(`Gradium TTS error — ${error.message}`);
+        }
+      }
+
+      function setState(text) {
+        statebarEl.textContent = text;
+      }
+
+      function setVoiceStatus(text) {
+        voiceStatusEl.textContent = text;
+      }
+
+      function setPhase(activeIdx) {
+        phaseEls.forEach((el, idx) => {
+          el.classList.remove("active", "complete");
+          if (idx < activeIdx) el.classList.add("complete");
+          if (idx === activeIdx) el.classList.add("active");
+        });
+      }
+
+      function fillValue(el, value) {
+        el.textContent = value;
+        el.classList.add("filled");
+      }
+
+      function setPolicy(data) {
+        for (const [k, v] of Object.entries(data)) {
+          if (policyEls[k]) fillValue(policyEls[k], v);
+        }
+      }
+
+      function setClaim(data) {
+        for (const [k, v] of Object.entries(data)) {
+          if (claimEls[k]) fillValue(claimEls[k], v);
+        }
+      }
+
+      function resetForInteractiveCall() {
+        manualLiveMode = true;
+        clearTranscript();
+        claimCompleteEl.classList.remove("show");
+        lastLiveTranscriptLength = 0;
+        conversationMemory = {
+          safetyKnown: false,
+          safe: null,
+          aloneKnown: false,
+          alone: null,
+          emergencyKnown: false,
+          emergencyCalled: null,
+          storyCaptured: false,
+          photoOffered: false,
+          photoAccepted: false,
+          policyKnown: false,
+          timeKnown: false,
+          locationKnown: false,
+          summaryOffered: false,
+          closed: false
+        };
+        finalTranscriptBuffer = "";
+        setPhase(0);
+        setPolicy({ name: "-", policy: "-", vehicle: "-", coverage: "-" });
+        setClaim({
+          time: "-",
+          location: "-",
+          damage: "-",
+          otherParty: "-",
+          injury: "-",
+          photos: "-",
+          police: "-"
+        });
+      }
+
+      let lastLiveTranscriptLength = 0;
+      let liveConnected = false;
+
+      function addLine({ speaker, text, flags = [], voice = true }) {
+        const line = document.createElement("p");
+        line.className = "line";
+
+        const speakerTag = document.createElement("span");
+        speakerTag.className = `speaker ${speaker}`;
+        speakerTag.textContent = speaker;
+
+        const textSpan = document.createElement("span");
+        textSpan.className = `text ${speaker}`;
+        textSpan.textContent = text;
+
+        line.appendChild(speakerTag);
+        line.appendChild(textSpan);
+
+        flags.forEach((flag) => {
+          const f = document.createElement("span");
+          f.className = "flag";
+          f.textContent = `[${flag}]`;
+          line.appendChild(f);
+        });
+
+        transcriptEl.appendChild(line);
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
+
+        if (voice && speaker === "agent") {
+          orbSpeakFor(Math.max(2400, Math.min(6200, text.length * 60)));
+          speakAgent(text);
+        }
+      }
+
+      function isYes(lower) {
+        return /\b(yes|yeah|yep|yup|okay|ok|i am|i'm|safe|fine|alone|called|on the way|sure|correct|right)\b/.test(lower);
+      }
+
+      function isNo(lower) {
+        return /\b(no|not|nope|nah|haven't|have not|didn't|did not|nobody|alone)\b/.test(lower);
+      }
+
+      function extractFacts(text) {
+        const lower = text.toLowerCase();
+        const facts = {};
+
+        if (/\b(safe|pulled over|out of traffic|parked|roadside|side of the road)\b/.test(lower)) {
+          facts.safetyKnown = true;
+          facts.safe = !/\b(not safe|unsafe|traffic|middle of|stuck)\b/.test(lower);
+        }
+        if (/\b(alone|by myself|only me|no one else|nobody else)\b/.test(lower)) {
+          facts.aloneKnown = true;
+          facts.alone = true;
+        }
+        if (/\b(passenger|wife|husband|child|friend|someone else|other person)\b/.test(lower)) {
+          facts.aloneKnown = true;
+          facts.alone = false;
+        }
+        if (/\b(112|police|ambulance|emergency|paramedic)\b/.test(lower)) {
+          facts.emergencyKnown = true;
+          facts.emergencyCalled = /\b(called|coming|on the way|already|yes)\b/.test(lower) && !/\b(not|no|haven't)\b/.test(lower);
+        }
+        if (/\b(happened|hit|came|crashed|accident|van|car|driver|side|rear|front|door|bumper)\b/.test(lower)) {
+          facts.storyCaptured = true;
+        }
+        if (/\b(photo|picture|upload|link|send it|sent|done)\b/.test(lower)) {
+          facts.photoAccepted = isYes(lower) || /\b(done|uploaded|send it)\b/.test(lower);
+        }
+        if (/\b(policy|74|ax|9912|nora|klein|insurance)\b/.test(lower)) {
+          facts.policyKnown = true;
+        }
+
+        if (/policy|74|ax|9912|nora|klein/.test(lower)) {
+          setPolicy({
+            name: /nora|klein/.test(lower) ? "Nora Klein" : "Matched policyholder",
+            policy: /74|ax|9912/.test(lower) ? "74-AX-9912" : "Matched",
+            vehicle: "2021 VW Golf",
+            coverage: "Comprehensive + Collision"
+          });
+          setState("Policy matched — browser ASR capture");
+        }
+        if (/arm|hurt|pain|injur|sore/.test(lower)) {
+          setClaim({ injury: "Pain or injury mentioned" });
+        }
+        if (/police|ambulance|112|emergency/.test(lower)) {
+          setClaim({ police: /called|coming|way/.test(lower) ? "Emergency services contacted" : "Mentioned" });
+        }
+        if (/alexanderplatz|street|strasse|straße|road|near|location|landmark/.test(lower)) {
+          setClaim({ location: text.slice(0, 96) });
+        }
+        if (/rear|front|side|door|bumper|headlight|damage|hit|van|car/.test(lower)) {
+          setClaim({ damage: text.slice(0, 120) });
+        }
+        if (/other driver|other car|van|plate/.test(lower)) {
+          setClaim({ otherParty: text.slice(0, 96) });
+        }
+        const timeMatch = text.match(/\b(\d{1,2}:\d{2}|\d{1,2}\s?(am|pm))\b/i);
+        if (timeMatch) {
+          setClaim({ time: timeMatch[1] });
+          facts.timeKnown = true;
+        }
+        if (/alexanderplatz|street|strasse|straße|road|near|location|landmark/.test(lower)) facts.locationKnown = true;
+
+        Object.assign(conversationMemory, facts);
+        return facts;
+      }
+
+      function getRecentTranscript() {
+        return [...transcriptEl.querySelectorAll(".line")].slice(-14).map((line) => ({
+          speaker: line.querySelector(".speaker")?.textContent || "",
+          text: line.querySelector(".text")?.textContent || ""
+        }));
+      }
+
+      function applyAgentDecision(decision) {
+        if (typeof decision.phaseIndex === "number") setPhase(decision.phaseIndex);
+        if (decision.memoryPatch) Object.assign(conversationMemory, decision.memoryPatch);
+        if (decision.claimPatch) {
+          const claimPatch = {};
+          const policyPatch = {};
+          if (decision.claimPatch.time) claimPatch.time = decision.claimPatch.time;
+          if (decision.claimPatch.location) claimPatch.location = decision.claimPatch.location;
+          if (decision.claimPatch.damage) claimPatch.damage = decision.claimPatch.damage;
+          if (decision.claimPatch.otherParty) claimPatch.otherParty = decision.claimPatch.otherParty;
+          if (decision.claimPatch.injury) claimPatch.injury = decision.claimPatch.injury;
+          if (decision.claimPatch.photos) claimPatch.photos = decision.claimPatch.photos;
+          if (decision.claimPatch.police) claimPatch.police = decision.claimPatch.police;
+          if (decision.claimPatch.name) policyPatch.name = decision.claimPatch.name;
+          if (decision.claimPatch.policy) policyPatch.policy = decision.claimPatch.policy;
+          if (decision.claimPatch.vehicle) policyPatch.vehicle = decision.claimPatch.vehicle;
+          if (decision.claimPatch.coverage) policyPatch.coverage = decision.claimPatch.coverage;
+          setClaim(claimPatch);
+          setPolicy(policyPatch);
+        }
+        if (decision.claimComplete) claimCompleteEl.classList.add("show");
+        if (decision.state) setState(decision.state);
+      }
+
+      async function responseForTurn(text) {
+        try {
+          const response = await fetch("/agent/respond", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              callerText: text,
+              memory: conversationMemory,
+              transcript: getRecentTranscript()
+            })
+          });
+
+          if (!response.ok) throw new Error(await response.text());
+          const decision = await response.json();
+          applyAgentDecision(decision);
+          return decision.response;
+        } catch (error) {
+          setState(`Gemini fallback — ${String(error.message || error).slice(0, 80)}`);
+          return localPolicyResponse(text);
+        }
+      }
+
+      function localPolicyResponse(text) {
+        const lower = text.toLowerCase();
+        const facts = extractFacts(text);
+
+        if (/can't|cannot|too much|overwhelmed|call me back|later/.test(lower)) {
+          setPhase(4);
+          setState("Callback path triggered — caller cannot continue");
+          return "Of course. You don't have to do this all at once. Can I call you back in 20 minutes and pick up exactly here?";
+        }
+
+        if (conversationMemory.closed) {
+          return "Of course. I'm still here.";
+        }
+
+        if (facts.safe === false) {
+          setPhase(0);
+          setState("Unsafe location detected — emergency-first branch");
+          return "Right. Please move only if you can do that safely. If you're in danger, call 112 now — I'll stay here.";
+        }
+
+        if (!conversationMemory.safetyKnown) {
+          setPhase(0);
+          return "Okay. I'm right here. Are you somewhere safe, away from moving traffic?";
+        }
+
+        if (!conversationMemory.aloneKnown) {
+          setPhase(0);
+          return "Good. Is anyone else in the car with you — are they okay?";
+        }
+
+        if (!conversationMemory.emergencyKnown) {
+          setPhase(0);
+          return "Right. Have emergency services been called yet — police or ambulance?";
+        }
+
+        if (!conversationMemory.storyCaptured) {
+          setPhase(1);
+          return "Of course. Please don't decide you're fine yet. When you're ready, just tell me what happened.";
+        }
+
+        if (!conversationMemory.photoOffered) {
+          conversationMemory.photoOffered = true;
+          setPhase(2);
+          setClaim({ photos: "0 received" });
+          setState("SMS sent — photo link simulated");
+          return "I hear you. Before anything gets moved, I'd like to help you take a few photos. Is that okay?";
+        }
+
+        if (conversationMemory.photoOffered && !conversationMemory.photoAccepted) {
+          if (isNo(lower)) {
+            conversationMemory.photoAccepted = true;
+            setPhase(3);
+            return "That's completely fine. The link can wait. What I'd like to do now is take a few details to open the claim.";
+          }
+          conversationMemory.photoAccepted = true;
+          setPhase(2);
+          return "Good. First, step back if safe and take one wide shot with both cars visible.";
+        }
+
+        if (conversationMemory.photoAccepted && !conversationMemory.policyKnown) {
+          setPhase(3);
+          return "Right. Do you have your insurance details to hand, or should I look it up from your name?";
+        }
+
+        if (!conversationMemory.timeKnown) {
+          setPhase(3);
+          return "Good. Roughly what time did this happen?";
+        }
+
+        if (!conversationMemory.locationKnown) {
+          setPhase(3);
+          return "Can you see a street name or a landmark near you?";
+        }
+
+        if (!conversationMemory.summaryOffered) {
+          conversationMemory.summaryOffered = true;
+          setPhase(5);
+          return "So we have the location, the time, the damage, and the photos coming through. Is there anything I've missed?";
+        }
+
+        if (conversationMemory.summaryOffered && isNo(lower)) {
+          conversationMemory.closed = true;
+          setPhase(5);
+          claimCompleteEl.classList.add("show");
+          setState("Claim complete — waiting for caller to end call");
+          return "Good. A claims specialist will call within two hours. Please get checked, and keep any medical receipts. Is there anything else you need from me before I let you go?";
+        }
+
+        setPhase(5);
+        return "Right. Tell me what I missed, and I'll correct it before we close.";
+      }
+
+      async function handleCallerSpeech(text) {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        finalTranscriptBuffer += ` ${trimmed}`;
+        addLine({ speaker: "caller", text: trimmed, flags: [] });
+        setState("ASR final transcript captured — generating response");
+        setVoiceStatus("Thinking");
+        const response = await responseForTurn(trimmed);
+        setTimeout(() => {
+          addLine({ speaker: "agent", text: response });
+          setVoiceStatus("Speaking");
+        }, empathyLike(response) ? randomIn(800, 1200) : 650);
+      }
+
+      async function requestMicrophonePermission() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          setVoiceStatus("Mic API unavailable");
+          setState("Microphone permission API unavailable in this browser");
+          return null;
+        }
+
+        setVoiceStatus("Requesting mic");
+        setState("Requesting microphone permission — choose Allow in the browser prompt");
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          setVoiceStatus("Mic allowed");
+          return stream;
+        } catch (_error) {
+          setVoiceStatus("Mic permission denied");
+          setState("Microphone permission denied — open site settings, allow microphone, then refresh");
+          return null;
+        }
+      }
+
+      function floatTo16BitPcm(float32) {
+        const output = new Int16Array(float32.length);
+        for (let i = 0; i < float32.length; i += 1) {
+          const s = Math.max(-1, Math.min(1, float32[i]));
+          output[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+        return output;
+      }
+
+      function downsampleBuffer(buffer, inputSampleRate, outputSampleRate) {
+        if (outputSampleRate === inputSampleRate) return buffer;
+        const ratio = inputSampleRate / outputSampleRate;
+        const newLength = Math.round(buffer.length / ratio);
+        const result = new Float32Array(newLength);
+        let offsetResult = 0;
+        let offsetBuffer = 0;
+        while (offsetResult < result.length) {
+          const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+          let accum = 0;
+          let count = 0;
+          for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i += 1) {
+            accum += buffer[i];
+            count += 1;
+          }
+          result[offsetResult] = accum / count;
+          offsetResult += 1;
+          offsetBuffer = nextOffsetBuffer;
+        }
+        return result;
+      }
+
+      async function startGradiumAsr(stream) {
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        asrSocket = new WebSocket(`${wsProtocol}//${window.location.host}/gradium/asr`);
+        asrSocket.binaryType = "arraybuffer";
+
+        asrSocket.onopen = async () => {
+          audioContext = new AudioContext();
+          micSource = audioContext.createMediaStreamSource(stream);
+          audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+
+          audioProcessor.onaudioprocess = (event) => {
+            if (!micActive || agentSpeaking || asrSocket?.readyState !== WebSocket.OPEN) return;
+            const input = event.inputBuffer.getChannelData(0);
+            const downsampled = downsampleBuffer(input, audioContext.sampleRate, 24000);
+            const pcm = floatTo16BitPcm(downsampled);
+            asrSocket.send(pcm.buffer);
+          };
+
+          micSource.connect(audioProcessor);
+          audioProcessor.connect(audioContext.destination);
+          setVoiceStatus("Listening");
+          setState("Gradium ASR connected — listening in realtime");
+        };
+
+        asrSocket.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "ready") {
+            setState("Gradium ASR ready — streaming microphone audio");
+            return;
+          }
+          if (msg.type === "text" && msg.text) {
+            pendingAsrText = msg.text;
+            setVoiceStatus(`Heard: ${msg.text.slice(0, 24)}`);
+            return;
+          }
+          if (msg.type === "end_text" && pendingAsrText.trim()) {
+            const heard = pendingAsrText;
+            pendingAsrText = "";
+            setTimeout(() => handleCallerSpeech(heard), voiceProfile.endpointingMs);
+            return;
+          }
+          if (msg.type === "error") {
+            setVoiceStatus("ASR error");
+            setState(`Gradium ASR error — ${msg.message || "unknown error"}`);
+          }
+        };
+
+        asrSocket.onerror = () => {
+          setVoiceStatus("ASR socket error");
+          setState("Gradium ASR socket failed");
+        };
+
+        asrSocket.onclose = () => {
+          if (micActive) {
+            setVoiceStatus("ASR disconnected");
+            setState("Gradium ASR disconnected");
+          }
+        };
+      }
+
+      async function startInteractiveCall() {
+        const stream = await requestMicrophonePermission();
+        if (!stream) return;
+
+        resetForInteractiveCall();
+        mediaStream = stream;
+        micActive = true;
+        voiceToggleEl.textContent = "End Call";
+        voiceToggleEl.classList.add("listening");
+        setVoiceStatus("Connecting ASR");
+        await startGradiumAsr(stream);
+        addLine({
+          speaker: "agent",
+          text: "Hi — I'm here with you. Before anything else, are you in a safe place right now?"
+        });
+        setState("Gradium ASR/TTS call started — microphone listening after agent prompt");
+      }
+
+      function stopInteractiveCall() {
+        micActive = false;
+        agentSpeaking = false;
+        pendingAsrText = "";
+        asrSocket?.close();
+        audioProcessor?.disconnect();
+        micSource?.disconnect();
+        audioContext?.close();
+        mediaStream?.getTracks().forEach((track) => track.stop());
+        asrSocket = null;
+        audioProcessor = null;
+        micSource = null;
+        audioContext = null;
+        mediaStream = null;
+        voiceToggleEl.textContent = "Start Call";
+        voiceToggleEl.classList.remove("listening");
+        setVoiceStatus("ASR idle");
+        setState("Interactive call stopped");
+      }
+
+      voiceToggleEl.addEventListener("click", () => {
+        if (micActive) stopInteractiveCall();
+        else startInteractiveCall();
+      });
+
+      function clearTranscript() {
+        transcriptEl.textContent = "";
+      }
+
+      function stageToPhase(stage) {
+        const map = {
+          safety_check: 0,
+          identity: 3,
+          incident_basics: 3,
+          event_summary: 1,
+          status_questions: 3,
+          photo_offer: 2,
+          recap: 5,
+          closed: 5
+        };
+        return map[stage] ?? 0;
+      }
+
+      function renderLiveClaim(claim) {
+        const fields = claim.fields || {};
+        const policyMatched = fields.policyNumber || fields.fullName;
+        if (policyMatched) {
+          setPolicy({
+            name: fields.fullName || "Matched policyholder",
+            policy: fields.policyNumber || "-",
+            vehicle: fields.vehicleDescription || "2021 VW Golf",
+            coverage: fields.coverageType || "Comprehensive + Collision"
+          });
+        }
+
+        setPhase(stageToPhase(claim.stage));
+        setClaim({
+          time: fields.incidentTime || fields.incidentDate || "-",
+          location: fields.incidentLocation || fields.cityOrRegion || "-",
+          damage: fields.damageDescription || fields.callerNarrative || "-",
+          otherParty: fields.otherParty || fields.numberOfVehicles || "-",
+          injury: fields.injuriesReported || "-",
+          photos: `${fields.photosReceived ?? 0} received`,
+          police: fields.policeReport || fields.policePresent || "-"
+        });
+
+        const transcript = claim.transcript || [];
+        clearTranscript();
+        transcript.forEach((entry) => {
+          addLine({ speaker: entry.role, text: entry.text, flags: [], voice: false });
+        });
+
+        if (transcript.length > lastLiveTranscriptLength) {
+          const newest = transcript[transcript.length - 1];
+          if (newest?.role === "agent") {
+            orbSpeakFor(Math.max(2400, Math.min(6200, newest.text.length * 60)));
+            speakAgent(newest.text);
+          }
+        }
+        lastLiveTranscriptLength = transcript.length;
+
+        setState(fields.currentAgentState || `Live claim ${claim.claimId} — ${claim.stage}`);
+        if (claim.stage === "closed") claimCompleteEl.classList.add("show");
+      }
+
+      function tryLiveMode() {
+        if (!("EventSource" in window)) return false;
+        const forcedDemo = new URLSearchParams(window.location.search).has("demo");
+        if (forcedDemo) return false;
+
+        const eventUrl =
+          window.location.protocol === "file:"
+            ? "http://localhost:8092/events"
+            : `${window.location.origin}/events`;
+        const stream = new EventSource(eventUrl);
+        let connected = false;
+
+        stream.onopen = () => {
+          connected = true;
+          liveConnected = true;
+          clearTranscript();
+          setState("Live monitor connected — waiting for claim events");
+        };
+
+        stream.onmessage = (message) => {
+          if (manualLiveMode) return;
+          const data = JSON.parse(message.data);
+          if (data.type === "claim" && data.claim) renderLiveClaim(data.claim);
+        };
+
+        stream.onerror = () => {
+          if (!connected) stream.close();
+        };
+
+        setTimeout(() => {
+          if (!connected) stream.close();
+        }, 1200);
+
+        return true;
+      }
+
+      const events = [
+        {
+          t: 0,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "Hi — I'm here with you. Before anything else, are you in a safe place right now?"
+            });
+            setState("Presence opened — safety-first response");
+          }
+        },
+        {
+          t: 9,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "Yeah I — I think so. There was an accident. I don't even know what happened.",
+              flags: ["DISTRESS DETECTED"]
+            });
+            setState("Emotional signal — acknowledging before advancing");
+          }
+        },
+        {
+          t: 17,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "Okay. I'm right here. Is anyone else in the car with you — are they okay?"
+            });
+          }
+        },
+        {
+          t: 26,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "No, I was alone."
+            });
+            setState("Safety check complete — moving to emergency support");
+          }
+        },
+        {
+          t: 35,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "Right. Have emergency services been called yet — police or ambulance? If not, I can stay while you dial 112, or send it by text now."
+            });
+            setState("Emergency branch offered — stay-on-line support available");
+          }
+        },
+        {
+          t: 48,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "I called 112. They're on the way. My arm hurts but I can still move.",
+              flags: ["DISTRESS DETECTED"]
+            });
+            setClaim({ injury: "Arm pain reported, mobile" });
+            setState("Emergency confirmed — injury noted without assumption");
+          }
+        },
+        {
+          t: 58,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "Of course. Please don't decide you're fine yet — get checked as soon as you can. When you're ready, just tell me what happened."
+            });
+            setPhase(1);
+          }
+        },
+        {
+          t: 72,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "I was driving and a van came from the side. It felt like nowhere. I hit the rear left and I'm still shaking."
+            });
+            setClaim({
+              damage: "Driver-side and front-left impact, heavy shake response"
+            });
+            setState("Story capture active — passive extraction only");
+          }
+        },
+        {
+          t: 86,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "I hear you. It came out of nowhere. Is there anything else about what happened that feels important before we move on?"
+            });
+          }
+        },
+        {
+          t: 100,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "I can't do everything right now. I'm trying to calm down.",
+              flags: ["SILENCE — HOLDING", "LOOPING"]
+            });
+            setState("Distress spike — callback branch trigger");
+          }
+        },
+        {
+          t: 111,
+          run: () => {
+            setPhase(4);
+            addLine({
+              speaker: "agent",
+              text: "I can hear this is a lot right now. You don't have to do this all at once. Can I call you back in 20 minutes and pick up exactly here?"
+            });
+            setState("Callback offered — preserving claim continuity");
+          }
+        },
+        {
+          t: 124,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "Yes, please call me back."
+            });
+            setState("Callback accepted — branch B engaged");
+          }
+        },
+        {
+          t: 130,
+          run: () => {
+            setState("SMS sent — callback window + photo link kept active");
+            addLine({
+              speaker: "agent",
+              text: "Of course. We'll speak again shortly. You've already done the most important thing — you called."
+            });
+          }
+        },
+        {
+          t: 148,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "Hi — it's the claims team again. How are you feeling now? Are you in a better place to talk?"
+            });
+            setState("Callback re-entry — checking readiness before process");
+          }
+        },
+        {
+          t: 160,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "Yes. Better now. I can continue.",
+              flags: ["STT LOW CONFIDENCE"]
+            });
+            setState("STT confidence low — reflecting back");
+          }
+        },
+        {
+          t: 168,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "Right, I think I heard that you're ready to continue now — is that correct?"
+            });
+          }
+        },
+        {
+          t: 176,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "Yes, correct."
+            });
+            setPhase(2);
+            addLine({
+              speaker: "agent",
+              text: "Good. Before anything gets moved, I'd like to help you take a few photos. I'm sending your link now. Is that okay?"
+            });
+            setState("Photo phase entered — one-shot guidance mode");
+          }
+        },
+        {
+          t: 187,
+          run: () => {
+            setClaim({ photos: "0 / 5 incoming" });
+            setState("SMS sent — photo link");
+            addLine({
+              speaker: "caller",
+              text: "Okay."
+            });
+          }
+        },
+        {
+          t: 196,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "First, step back if safe and take one wide shot with both cars visible."
+            });
+          }
+        },
+        {
+          t: 206,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "Done."
+            });
+            setClaim({ photos: "1 / 5 received" });
+          }
+        },
+        {
+          t: 212,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "Good. Now a close photo of your damage, then if possible the other plate, and one street sign."
+            });
+          }
+        },
+        {
+          t: 226,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "Uploaded three more."
+            });
+            setClaim({ photos: "4 / 5 received" });
+            setState("Photo evidence stream updated — 4 files attached");
+          }
+        },
+        {
+          t: 234,
+          run: () => {
+            setPhase(3);
+            addLine({
+              speaker: "agent",
+              text: "What I'd like to do now is take a few details to open the claim. If anything is missing, that's fine."
+            });
+            setState("Transition signaled — emotional to transactional bridge");
+          }
+        },
+        {
+          t: 247,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "Policy is 74-AX-9912 under Nora Klein."
+            });
+            setPolicy({
+              name: "Nora Klein",
+              policy: "74-AX-9912",
+              vehicle: "2021 VW Golf",
+              coverage: "Comprehensive + Collision"
+            });
+            setState("Policy matched — Nora Klein");
+          }
+        },
+        {
+          t: 258,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "Right. Roughly what time did this happen, and where are you right now?"
+            });
+          }
+        },
+        {
+          t: 271,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "Around 14:41 near Karl-Liebknecht-Strasse, Alexanderplatz.",
+              flags: ["STT LOW CONFIDENCE"]
+            });
+            setClaim({
+              time: "Approx 14:41",
+              location: "Karl-Liebknecht-Str. near Alexanderplatz"
+            });
+          }
+        },
+        {
+          t: 280,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "I think I heard 14:41 near Alexanderplatz — is that right?"
+            });
+            setState("Low confidence handled — reflect-back confirmation");
+          }
+        },
+        {
+          t: 289,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "Yes, that's right. The other driver is still here and police are coming."
+            });
+            setClaim({
+              otherParty: "Other driver present at scene",
+              police: "Police en route"
+            });
+          }
+        },
+        {
+          t: 300,
+          run: () => {
+            setPhase(5);
+            addLine({
+              speaker: "agent",
+              text: "So we have Alexanderplatz around 14:41, your driver-side damage, the other driver on scene, and four photos. Is there anything I've missed?"
+            });
+            setState("Close phase entered — summary in human language");
+          }
+        },
+        {
+          t: 312,
+          run: () => {
+            addLine({
+              speaker: "caller",
+              text: "No, that's all."
+            });
+            setClaim({ photos: "5 / 5 received" });
+          }
+        },
+        {
+          t: 320,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "Good. A claims specialist will call within two hours with repair options. Please get that arm checked and keep any receipts."
+            });
+            setState("Next steps set — two-hour specialist callback");
+          }
+        },
+        {
+          t: 334,
+          run: () => {
+            addLine({
+              speaker: "agent",
+              text: "You've handled this really well. Is there anything else you need from me before I let you go?"
+            });
+            claimCompleteEl.classList.add("show");
+            setState("Claim complete — waiting for caller to end call");
+          }
+        }
+      ];
+
+      setPhase(0);
+      const liveAttempted = tryLiveMode();
+      setTimeout(() => {
+        if (liveConnected) return;
+        setState("Demo mode — simulated call running");
+        events.forEach((event) => {
+          setTimeout(event.run, event.t * 1000);
+        });
+      }, liveAttempted ? 1500 : 0);
+    </script>
+  </body>
+</html>

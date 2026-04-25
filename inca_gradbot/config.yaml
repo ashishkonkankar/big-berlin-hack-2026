@@ -1,0 +1,16 @@
+llm:
+  model: "gemini-2.5-flash"
+  base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+
+tts:
+  rewrite_rules: "en"
+  padding_bonus: 1.2
+
+stt:
+  flush_duration_s: 1.6
+  extra_config:
+    delay_in_frames: 48
+
+session:
+  silence_timeout_s: 0.0
+  assistant_speaks_first: true
