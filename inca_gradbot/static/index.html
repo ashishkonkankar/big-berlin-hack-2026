@@ -6,7 +6,7 @@
   <title>INCA Track Voice Agent</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,500&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --paper: #fbfbfa;
@@ -22,9 +22,12 @@
 
     * { box-sizing: border-box; }
 
-    body {
+    html, body {
       margin: 0;
-      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
+    }
+    body {
       background: var(--paper);
       color: var(--ink);
       font-family: "Karla", system-ui, sans-serif;
@@ -32,10 +35,11 @@
     }
 
     .shell {
-      min-height: 100vh;
+      height: 100vh;
       display: grid;
       grid-template-columns: minmax(260px, 0.82fr) minmax(340px, 1.15fr) minmax(260px, 0.82fr);
       grid-template-rows: 1fr auto;
+      overflow: hidden;
     }
 
     .panel {
@@ -46,16 +50,44 @@
     }
 
     .panel.left { border-right: 1px solid var(--hairline); }
-    .panel.right { border-left: 1px solid var(--hairline); }
+    .panel.right {
+      border-left: 1px solid var(--hairline);
+      display: flex;
+      flex-direction: column;
+    }
+    .panel.right .transcript {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 8px;
+      mask-image: linear-gradient(to bottom, transparent 0, black 50px, black 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 50px, black 100%);
+    }
+    .panel.right .transcript-inner {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 4px;
+      padding-top: 50px;
+      box-sizing: border-box;
+    }
+    .panel.left, .center { overflow: hidden; }
 
     .center {
       position: relative;
       display: flex;
       flex-direction: column;
+      justify-content: center;
+      align-items: stretch;
       min-height: 0;
       padding: 28px 34px 24px;
       background: var(--paper);
     }
+    .center .label { position: absolute; top: 28px; left: 34px; }
+    .center .controls { margin-top: 28px; }
+    .center .status { text-align: center; }
 
     .label {
       font-family: "IBM Plex Mono", monospace;
@@ -125,6 +157,52 @@
     .row span.empty { color: #a7a29a; }
     .row span.flash { color: var(--accent); opacity: 0.2; }
 
+    .label .provenance {
+      font-family: "IBM Plex Mono", monospace;
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 10px;
+      color: var(--accent);
+      margin-left: 8px;
+    }
+
+    .row { position: relative; }
+    .row .via-pioneer {
+      position: absolute;
+      right: 0;
+      top: 0;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      opacity: 0.7;
+      text-transform: uppercase;
+    }
+
+    #pioneerBadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      transition: color 240ms ease;
+    }
+    #pioneerBadge::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #d6d2cb;
+      transition: background 240ms ease, box-shadow 240ms ease;
+    }
+    #pioneerBadge.on { color: var(--accent); }
+    #pioneerBadge.on::before {
+      background: var(--accent);
+      box-shadow: 0 0 8px rgba(193,127,62,0.5);
+    }
+
     .phases {
       display: grid;
       gap: 12px;
@@ -153,46 +231,17 @@
     .phase.done { opacity: 0.45; }
 
     .orb-stage {
-      flex: 0 0 315px;
+      flex: 0 0 auto;
       display: grid;
       place-items: center;
       position: relative;
+      padding: 24px 0;
     }
-
-    .orb {
-      width: 152px;
-      height: 152px;
-      border-radius: 50%;
-      background:
-        radial-gradient(circle at 42% 35%, rgba(255,255,255,0.98), rgba(242,239,234,0.92) 44%, rgba(205,198,189,0.6) 100%);
-      box-shadow:
-        inset 0 0 18px rgba(255,255,255,0.95),
-        inset 0 -22px 36px rgba(0,0,0,0.08),
-        0 18px 55px rgba(17,17,17,0.12);
-      transform: scale(1);
-      transition: transform 180ms ease, box-shadow 180ms ease;
-    }
-
-    .orb.agent {
-      animation: pulse 820ms ease-in-out infinite alternate;
-      box-shadow:
-        inset 0 0 22px rgba(255,255,255,0.96),
-        inset 0 -24px 40px rgba(193,127,62,0.12),
-        0 0 0 10px rgba(193,127,62,0.08),
-        0 26px 70px rgba(193,127,62,0.2);
-    }
-
-    .orb.user {
-      box-shadow:
-        inset 0 0 20px rgba(255,255,255,0.95),
-        inset 0 -20px 34px rgba(0,0,0,0.06),
-        0 0 0 10px rgba(47,107,79,0.08),
-        0 22px 62px rgba(47,107,79,0.16);
-    }
-
-    @keyframes pulse {
-      from { transform: scale(0.985); }
-      to { transform: scale(1.08); }
+    #dotField {
+      width: 360px;
+      height: 360px;
+      display: block;
+      filter: saturate(1.05);
     }
 
     .controls {
@@ -262,15 +311,59 @@
     }
 
     .line {
-      margin: 0 0 16px;
-      line-height: 1.35;
-      font-family: "Fraunces", Georgia, serif;
-      font-style: italic;
-      font-size: clamp(20px, 2.6vw, 30px);
+      margin: 0 0 22px;
+      line-height: 1.5;
+      font-family: "Inter", system-ui, sans-serif;
+      font-style: normal;
+      font-weight: 400;
+      font-size: 15px;
       color: var(--ink);
+      letter-spacing: -0.005em;
     }
 
     .line.agent { color: var(--accent); }
+    .line .words { display: block; margin-top: 4px; }
+    .line .words + .words { margin-top: 6px; }
+
+    .card {
+      margin: 8px 0 16px;
+      padding: 14px 16px;
+      background: #fff;
+      border: 1px solid var(--hairline);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      animation: cardIn 320ms ease;
+    }
+    .card .card-kicker {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .card strong {
+      font-family: "Inter", system-ui, sans-serif;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .card .card-body, .card em {
+      font-family: "Inter", system-ui, sans-serif;
+      font-style: normal;
+      font-size: 14px;
+      line-height: 1.45;
+      color: var(--ink);
+    }
+    .card.loading em { color: var(--muted); }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0);   }
+    }
 
     .speaker {
       display: block;
@@ -331,7 +424,7 @@
     <aside class="panel left">
       <div class="brand">
         <h1>INCA TRACK</h1>
-        <span>FNOL</span>
+        <span id="pioneerBadge" title="Live entity extraction by Pioneer (Fastino)">Pioneer</span>
       </div>
 
       <p class="label">POLICYHOLDER</p>
@@ -342,36 +435,6 @@
         <div class="row"><b>Coverage</b><span data-field="coverage" class="empty">-</span></div>
       </section>
 
-      <p class="label">CALL PHASE</p>
-      <section class="phases" id="phases">
-        <div class="phase active" data-phase="1"><i>1</i><span>Safety and Presence</span></div>
-        <div class="phase" data-phase="2"><i>2</i><span>Story and Listening</span></div>
-        <div class="phase" data-phase="3"><i>3</i><span>Photo Evidence</span></div>
-        <div class="phase" data-phase="4"><i>4</i><span>Information Gathering</span></div>
-        <div class="phase" data-phase="B"><i>B</i><span>Callback Path</span></div>
-        <div class="phase" data-phase="6"><i>6</i><span>Close</span></div>
-      </section>
-    </aside>
-
-    <section class="center">
-      <p class="label">REALTIME VOICE ACTIVITY</p>
-      <div class="orb-stage">
-        <div class="orb" id="orb" aria-hidden="true"></div>
-      </div>
-
-      <div class="controls">
-        <button id="startBtn">Start Call</button>
-        <button id="stopBtn" class="secondary" disabled>End Call</button>
-        <label class="toggle"><input id="echoToggle" type="checkbox" checked> Echo cancellation</label>
-        <label class="speed">Speed <input id="speed" type="range" min="0.75" max="1.1" step="0.05" value="0.9"><span id="speedValue">0.90</span></label>
-      </div>
-
-      <p class="status" id="status">Ready. Microphone permission will be requested when the call starts.</p>
-
-      <div class="transcript" id="transcript" aria-live="polite"></div>
-    </section>
-
-    <aside class="panel right">
       <p class="label">CLAIM RECORD</p>
       <section class="record">
         <div class="row"><b>Time</b><span data-field="time_of_incident" class="empty">-</span></div>
@@ -383,6 +446,37 @@
         <div class="row"><b>Police</b><span data-field="police_report" class="empty">-</span></div>
         <div class="row"><b>Status</b><span data-field="claim_complete" class="empty">-</span></div>
       </section>
+
+      <p class="label">CALL PHASE</p>
+      <section class="phases" id="phases">
+        <div class="phase active" data-phase="1"><i>1</i><span>Safety and Presence</span></div>
+        <div class="phase" data-phase="2"><i>2</i><span>Story and Listening</span></div>
+        <div class="phase" data-phase="3"><i>3</i><span>Photo Evidence</span></div>
+        <div class="phase" data-phase="4"><i>4</i><span>Information Gathering</span></div>
+        <div class="phase" data-phase="5"><i>5</i><span>Close</span></div>
+      </section>
+    </aside>
+
+    <section class="center">
+      <p class="label">REALTIME VOICE ACTIVITY</p>
+      <div class="orb-stage">
+        <canvas id="dotField" width="640" height="640" aria-hidden="true"></canvas>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn">Start Call</button>
+        <button id="stopBtn" class="secondary" disabled>End Call</button>
+        <label class="toggle"><input id="echoToggle" type="checkbox" checked> Echo cancellation</label>
+      </div>
+
+      <p class="status" id="status">Ready. Microphone permission will be requested when the call starts.</p>
+    </section>
+
+    <aside class="panel right">
+      <p class="label">TRANSCRIPT</p>
+      <div class="transcript" id="transcript" aria-live="polite">
+        <div class="transcript-inner" id="transcriptInner"></div>
+      </div>
     </aside>
 
     <footer class="bar">
@@ -398,34 +492,208 @@
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const echoToggle = document.getElementById('echoToggle');
-    const speed = document.getElementById('speed');
-    const speedValue = document.getElementById('speedValue');
+    const SPEED = 1.0;
     const statusEl = document.getElementById('status');
-    const orb = document.getElementById('orb');
     const transcript = document.getElementById('transcript');
+    const transcriptInner = document.getElementById('transcriptInner');
     const agentState = document.getElementById('agentState');
 
     let ws = null;
     let player = null;
     let isRecording = false;
-    let turnNodes = {};
-    let callerDraftNode = null;
-    let callerDraftTimer = 0;
+    let lastSpeaker = null;
+    let lastLineNode = null;
+    let lastChunkAt = 0;
+    let dotsTimer = 0;
+    let pendingNewParagraph = false;
+    let speakerMode = null; // null | 'agent' | 'user'
 
-    speed.addEventListener('input', () => {
-      speedValue.textContent = Number(speed.value).toFixed(2);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'config', speed: parseFloat(speed.value) }));
+    // ----- Iridescent gradient orb -----
+    const orbCanvas = document.getElementById('dotField');
+    const octx = orbCanvas.getContext('2d');
+    const ORB_W = orbCanvas.width;
+    const ORB_H = orbCanvas.height;
+    const ORB_CX = ORB_W / 2;
+    const ORB_CY = ORB_H / 2;
+    const ORB_R = ORB_W * 0.36;
+
+    const blobs = [
+      { color: [255, 110,  60], baseR: 0.62, fx: 0.27, fy: 0.31, px: 0.0, py: 1.1 }, // warm orange
+      { color: [255, 130, 200], baseR: 0.55, fx: 0.19, fy: 0.23, px: 0.6, py: 2.2 }, // pink
+      { color: [ 95,  60, 230], baseR: 0.74, fx: 0.33, fy: 0.21, px: 1.4, py: 0.4 }, // deep purple
+      { color: [ 70, 140, 255], baseR: 0.58, fx: 0.24, fy: 0.29, px: 2.1, py: 1.7 }, // electric blue
+      { color: [255, 180,  90], baseR: 0.45, fx: 0.41, fy: 0.17, px: 3.0, py: 0.9 }, // amber highlight
+    ];
+
+    function setDots(mode) { speakerMode = mode; }
+
+    // Offscreen canvas to compose orb interior, then mask with a soft radial alpha
+    const orbBuf = document.createElement('canvas');
+    orbBuf.width = ORB_W;
+    orbBuf.height = ORB_H;
+    const bctx = orbBuf.getContext('2d');
+
+    // Smoothed live audio level from the actual TTS / mic stream
+    let liveLevel = 0; // 0..1
+    function sampleLevel() {
+      const proc = player && player.audioProcessor;
+      if (!proc) return 0;
+      const fn = speakerMode === 'user' ? proc.getInputLevels : proc.getOutputLevels;
+      let data;
+      try { data = fn ? fn.call(proc) : null; } catch { data = null; }
+      if (!data || !data.length) return 0;
+      // Mid-band energy — voiced syllables sit roughly here, less hiss/rumble
+      const lo = Math.floor(data.length * 0.04);
+      const hi = Math.floor(data.length * 0.45);
+      let sum = 0;
+      for (let i = lo; i < hi; i++) sum += data[i];
+      return Math.min(1, sum / ((hi - lo) * 180));
+    }
+
+    function tickOrb(t) {
+      const ts = t / 1000;
+      const isAgent = speakerMode === 'agent';
+      const isUser = speakerMode === 'user';
+
+      // Live waveform-driven energy. Asymmetric smoothing: snap up fast,
+      // decay slow — so each syllable hits crisply but doesn't strobe.
+      const raw = (isAgent || isUser) ? sampleLevel() : 0;
+      if (raw > liveLevel) liveLevel += (raw - liveLevel) * 0.55;
+      else                 liveLevel += (raw - liveLevel) * 0.10;
+
+      const baseEnergy = isAgent ? 0.18 : isUser ? 0.10 : 0.10;
+      const energy = Math.min(1, baseEnergy + liveLevel * 1.2);
+      const speed = 1 + energy * 1.6;
+      const ambientPulse = 1 + 0.012 * Math.sin(ts * 1.3);
+      const livePulse = 1 + liveLevel * (isAgent ? 0.18 : isUser ? 0.10 : 0);
+      const radius = ORB_R * ambientPulse * livePulse;
+
+      // --- Compose the orb interior on an offscreen buffer ---
+      bctx.globalCompositeOperation = 'source-over';
+      bctx.filter = 'none';
+      bctx.clearRect(0, 0, ORB_W, ORB_H);
+
+      // Light cream/lavender base — pastel, not dark
+      const base = bctx.createRadialGradient(ORB_CX, ORB_CY, 0, ORB_CX, ORB_CY, radius);
+      base.addColorStop(0, '#fff4e6');
+      base.addColorStop(0.6, '#ffe6d2');
+      base.addColorStop(1, '#e7d6ec');
+      bctx.fillStyle = base;
+      bctx.fillRect(0, 0, ORB_W, ORB_H);
+
+      // Soft blurred color blobs drifting on top of the pastel base
+      bctx.filter = 'blur(40px)';
+      bctx.globalCompositeOperation = 'multiply';
+      const drift = radius * (0.40 + energy * 0.22);
+      for (const b of blobs) {
+        const dx = Math.cos(ts * b.fx * speed + b.px) * drift;
+        const dy = Math.sin(ts * b.fy * speed + b.py) * drift * 0.9;
+        const x = ORB_CX + dx;
+        const y = ORB_CY + dy;
+        const breathe = 1 + 0.18 * Math.sin(ts * 0.7 + b.px);
+        const r = radius * b.baseR * breathe * (0.85 + energy * 0.4);
+        const intensity = 0.45 + energy * 0.40;
+        const grad = bctx.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${intensity})`);
+        grad.addColorStop(1, `rgba(${b.color[0]},${b.color[1]},${b.color[2]},0)`);
+        bctx.fillStyle = grad;
+        bctx.beginPath();
+        bctx.arc(x, y, r, 0, Math.PI * 2);
+        bctx.fill();
       }
-    });
+
+      // Top highlight — gives 3D sphere feel
+      bctx.filter = 'blur(28px)';
+      bctx.globalCompositeOperation = 'screen';
+      const hi = bctx.createRadialGradient(
+        ORB_CX, ORB_CY - radius * 0.40, 0,
+        ORB_CX, ORB_CY - radius * 0.40, radius * 0.65,
+      );
+      hi.addColorStop(0, `rgba(255,255,250,${0.55 + energy * 0.25})`);
+      hi.addColorStop(1, 'rgba(255,255,250,0)');
+      bctx.fillStyle = hi;
+      bctx.fillRect(0, 0, ORB_W, ORB_H);
+
+      // Soft radial alpha mask — fades the edge instead of clipping it
+      bctx.filter = 'none';
+      bctx.globalCompositeOperation = 'destination-in';
+      const mask = bctx.createRadialGradient(ORB_CX, ORB_CY, 0, ORB_CX, ORB_CY, radius * 1.05);
+      mask.addColorStop(0.0, 'rgba(0,0,0,1)');
+      mask.addColorStop(0.78, 'rgba(0,0,0,0.95)');
+      mask.addColorStop(0.92, 'rgba(0,0,0,0.4)');
+      mask.addColorStop(1.0, 'rgba(0,0,0,0)');
+      bctx.fillStyle = mask;
+      bctx.fillRect(0, 0, ORB_W, ORB_H);
+
+      // --- Composite buffer to visible canvas with outer halo ---
+      octx.globalCompositeOperation = 'source-over';
+      octx.filter = 'none';
+      octx.clearRect(0, 0, ORB_W, ORB_H);
+      const haloAlpha = 0.04 + energy * 0.20;
+      const halo = octx.createRadialGradient(ORB_CX, ORB_CY, radius * 0.85, ORB_CX, ORB_CY, radius * 1.65);
+      halo.addColorStop(0, `rgba(255,170,120,${haloAlpha})`);
+      halo.addColorStop(1, 'rgba(255,170,120,0)');
+      octx.fillStyle = halo;
+      octx.fillRect(0, 0, ORB_W, ORB_H);
+      octx.drawImage(orbBuf, 0, 0);
+
+      requestAnimationFrame(tickOrb);
+    }
+    requestAnimationFrame(tickOrb);
+
+    // ----- Phase progression (heuristic from agent text) -----
+    function maybeAdvancePhase(text, isAgent) {
+      const t = text.toLowerCase();
+      let next = null;
+      if (isAgent) {
+        if (/within two hours|anything else you need from me|claim is open|in touch with you/.test(t)) next = '5';
+        else if (/take down a few details|policy|insurance details to hand|registration/.test(t)) next = '4';
+        else if (/photo|upload/.test(t)) next = '3';
+        else if (/tell me what happened|in your own words/.test(t)) next = '2';
+      } else {
+        // Caller's first utterance often already implies story content -> jump to phase 2
+        if (/\b(accident|crash|hit|rear[- ]?ended|ditch|broke down|stuck|skidded|rolled|totalled|fender|ran into|got hit)\b/.test(t)) {
+          next = '2';
+        } else if (/\b(safe|i'?m fine|i'?m okay|not hurt|called (the )?police|called 1?12|emergency.*called)\b/.test(t)) {
+          next = next || '2';
+        }
+      }
+      if (next) renderPhase(next);
+    }
+
+    // ----- Caller-keyword Tavily trigger -----
+    const lookupTriggers = [
+      { kind: 'tow', pattern: /\b(tow|towing|tow truck|breakdown service|stuck|ditch)\b/ },
+      { kind: 'rideshare', pattern: /\b(taxi|uber|ride|pick.{0,3}up|cab|lift)\b/ },
+      { kind: 'hospital', pattern: /\b(hospital|emergency room|a&e|er|ambulance)\b/ },
+      { kind: 'police', pattern: /\b(police|polizei|cops?|station)\b/ },
+    ];
+    let lookupCooldown = {};
+    let pendingExtractText = '';
+    let extractTimer = 0;
+    async function maybeLookup(text) {
+      const t = text.toLowerCase();
+      for (const trig of lookupTriggers) {
+        if (!trig.pattern.test(t)) continue;
+        const now = Date.now();
+        if ((lookupCooldown[trig.kind] || 0) > now - 30000) continue;
+        lookupCooldown[trig.kind] = now;
+        renderLookupCard(trig.kind, null);
+        try {
+          const res = await fetch('api/support-lookup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind: trig.kind, location: 'Alexanderplatz, Berlin' }),
+          }).then((r) => r.json());
+          renderLookupCard(trig.kind, res);
+        } catch (e) {
+          renderLookupCard(trig.kind, { answer: 'Lookup failed.' });
+        }
+      }
+    }
 
     function setStatus(text) {
       statusEl.textContent = text;
-    }
-
-    function setOrb(mode) {
-      orb.classList.remove('agent', 'user');
-      if (mode) orb.classList.add(mode);
     }
 
     function renderField(name, value) {
@@ -445,7 +713,8 @@
       for (const key of [
         'policyholder', 'policy_number', 'vehicle', 'coverage',
         'time_of_incident', 'location', 'damage_description', 'other_party',
-        'injury_noted', 'photos_received', 'police_report', 'claim_complete'
+        'injury_noted', 'photos_received', 'police_report', 'claim_complete',
+        'nearest_hospital', 'nearest_police'
       ]) {
         renderField(key, state[key]);
       }
@@ -454,57 +723,130 @@
     }
 
     function renderPhase(phase) {
-      const key = String(phase).trim().charAt(0).toUpperCase() || '1';
-      const order = ['1', '2', '3', '4', 'B', '6'];
+      const raw = String(phase).trim().charAt(0) || '1';
+      const remap = { '6': '5', 'B': '5', 'b': '5' };
+      const key = remap[raw] || raw;
+      const order = ['1', '2', '3', '4', '5'];
       const activeIndex = Math.max(0, order.indexOf(key));
       document.querySelectorAll('.phase').forEach((el) => {
         const idx = order.indexOf(el.dataset.phase);
         el.classList.toggle('active', idx === activeIndex);
-        el.classList.toggle('done', idx >= 0 && idx < activeIndex && key !== 'B');
+        el.classList.toggle('done', idx >= 0 && idx < activeIndex);
       });
     }
 
-    function getLineNode(key, speaker, className) {
-      let node = turnNodes[key];
-      if (!node) {
-        node = document.createElement('p');
-        node.className = `line ${className}`;
-        node.innerHTML = `<span class="speaker">${speaker}</span><span class="words"></span>`;
-        turnNodes[key] = node;
-        transcript.appendChild(node);
-      }
+    function newLineNode(speaker, className) {
+      const node = document.createElement('p');
+      node.className = `line ${className}`;
+      const label = document.createElement('span');
+      label.className = 'speaker';
+      label.textContent = speaker;
+      node.appendChild(label);
+      transcriptInner.appendChild(node);
       return node;
     }
 
-    function closeCallerDraft() {
-      callerDraftNode = null;
-      window.clearTimeout(callerDraftTimer);
-      callerDraftTimer = 0;
+    function renderLookupCard(kind, data) {
+      const id = `card-${kind}`;
+      let card = document.getElementById(id);
+      if (!card) {
+        card = document.createElement('div');
+        card.id = id;
+        card.className = 'card';
+        transcriptInner.appendChild(card);
+      }
+      const label = (data && data.label) || kind.toUpperCase();
+      if (!data) {
+        card.innerHTML = `<span class="card-kicker">via Tavily</span><strong>${label}</strong><em>Searching nearby…</em>`;
+        card.classList.add('loading');
+      } else {
+        card.classList.remove('loading');
+        const ans = data.answer && data.answer !== '-' ? data.answer : 'No clear match found.';
+        card.innerHTML = `<span class="card-kicker">via Tavily</span><strong>${label}</strong><span class="card-body">${ans}</span>`;
+      }
+      transcript.scrollTop = transcript.scrollHeight;
     }
 
-    function addText({ text, turnIdx, isUser }) {
-      const prefix = isUser ? 'CALLER' : 'AGENT';
-      let node;
+    function appendParagraph(lineNode) {
+      const words = document.createElement('span');
+      words.className = 'words';
+      lineNode.appendChild(words);
+      return words;
+    }
 
-      if (isUser && (turnIdx === undefined || turnIdx === null)) {
-        if (!callerDraftNode) {
-          const key = `u-draft-${Date.now()}`;
-          callerDraftNode = getLineNode(key, prefix, 'caller');
-        }
-        node = callerDraftNode;
-        window.clearTimeout(callerDraftTimer);
-        callerDraftTimer = window.setTimeout(closeCallerDraft, 2200);
-      } else {
-        if (!isUser) closeCallerDraft();
-        const key = `${isUser ? 'u' : 'a'}-${turnIdx ?? Date.now()}`;
-        node = getLineNode(key, prefix, isUser ? 'caller' : 'agent');
+    function addText({ text, isUser }) {
+      const speaker = isUser ? 'caller' : 'agent';
+      const now = Date.now();
+      const stale = now - lastChunkAt > 12000;
+      if (lastSpeaker !== speaker || !lastLineNode || stale) {
+        lastLineNode = newLineNode(isUser ? 'CALLER' : 'AGENT', speaker);
+        lastSpeaker = speaker;
+        pendingNewParagraph = false;
+        appendParagraph(lastLineNode);
+      } else if (pendingNewParagraph) {
+        appendParagraph(lastLineNode);
+        pendingNewParagraph = false;
       }
+      lastChunkAt = now;
 
-      node.querySelector('.words').textContent += `${text} `;
+      const paragraphs = lastLineNode.querySelectorAll('.words');
+      const wordsEl = paragraphs[paragraphs.length - 1];
+      const sep = wordsEl.textContent && !wordsEl.textContent.endsWith(' ') ? ' ' : '';
+      wordsEl.textContent += `${sep}${text}`;
       transcript.scrollTop = transcript.scrollHeight;
-      setOrb(isUser ? 'user' : 'agent');
-      window.clearTimeout(node._orbTimeout);
-      node._orbTimeout = window.setTimeout(() => setOrb(null), isUser ? 700 : 1100);
+
+      setDots(isUser ? 'user' : 'agent');
+      window.clearTimeout(dotsTimer);
+      dotsTimer = window.setTimeout(() => setDots(null), isUser ? 1000 : 1500);
+
+      maybeAdvancePhase(text, !isUser);
+      if (isUser) {
+        maybeLookup(wordsEl.textContent);
+        pendingExtractText = wordsEl.textContent;
+        window.clearTimeout(extractTimer);
+        extractTimer = window.setTimeout(runExtraction, 900);
+      }
+    }
+
+    async function runExtraction() {
+      const text = pendingExtractText;
+      pendingExtractText = '';
+      if (!text || text.length < 6) return;
+      try {
+        const res = await fetch('api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        }).then((r) => r.json());
+        const fields = res.fields || {};
+        let touched = false;
+        for (const [k, v] of Object.entries(fields)) {
+          renderField(k, v);
+          markPioneer(k);
+          touched = true;
+        }
+        if (touched) flashPioneerBadge();
+      } catch (e) { /* ignore */ }
+    }
+
+    function markPioneer(field) {
+      const el = document.querySelector(`[data-field="${field}"]`);
+      if (!el) return;
+      const row = el.closest('.row');
+      if (row && !row.querySelector('.via-pioneer')) {
+        const tag = document.createElement('span');
+        tag.className = 'via-pioneer';
+        tag.textContent = 'Pioneer';
+        row.appendChild(tag);
+      }
+    }
+
+    function flashPioneerBadge() {
+      const badge = document.getElementById('pioneerBadge');
+      if (!badge) return;
+      badge.classList.add('on');
+      window.clearTimeout(badge._t);
+      badge._t = window.setTimeout(() => badge.classList.remove('on'), 1200);
     }
 
     function handleWireMessage(raw) {
@@ -512,8 +854,8 @@
       if (raw.state) renderState(raw.state);
       if (raw.type === 'error') setStatus(raw.message || 'Voice session error');
       if (raw.type === 'event') {
-        if (raw.event === 'push_to_llm' || raw.event === 'llm_started' || raw.event === 'interrupted') {
-          closeCallerDraft();
+        if (raw.event === 'interrupted') {
+          pendingNewParagraph = true;
         }
         if (raw.event === 'photo_link_sent') agentState.textContent = 'SMS sent - photo link';
         if (raw.event === 'callback_requested') agentState.textContent = 'Callback path triggered';
@@ -523,8 +865,11 @@
 
     async function startCall() {
       startBtn.disabled = true;
-      transcript.innerHTML = '';
-      turnNodes = {};
+      transcriptInner.innerHTML = '';
+      lookupCooldown = {};
+      lastSpeaker = null;
+      lastLineNode = null;
+      lastChunkAt = 0;
       setStatus('Requesting microphone permission...');
 
       try {
@@ -557,7 +902,7 @@
       ws = new WebSocket(`${protocol}//${window.location.host}${basePath}/ws/chat`);
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'start', speed: parseFloat(speed.value) }));
+        ws.send(JSON.stringify({ type: 'start', speed: SPEED }));
         isRecording = true;
         stopBtn.disabled = false;
         setStatus('Connected. Speak normally - interruption is supported.');
@@ -586,7 +931,7 @@
       isRecording = false;
       startBtn.disabled = false;
       stopBtn.disabled = true;
-      setOrb(null);
+      setDots(null);
       setStatus('Call ended');
       if (sendStop && ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'stop' }));

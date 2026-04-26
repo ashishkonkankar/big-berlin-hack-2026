@@ -1,13 +1,13 @@
 llm:
-  model: "gemini-2.5-flash"
+  model: "gemini-2.5-flash-lite"
   base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
 
 tts:
   rewrite_rules: "en"
-  padding_bonus: 1.2
+  padding_bonus: 0.7
 
 stt:
-  flush_duration_s: 1.6
+  flush_duration_s: 0.9
   extra_config:
     delay_in_frames: 48
 
