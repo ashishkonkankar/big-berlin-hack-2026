@@ -37,6 +37,13 @@ def load_env_file(path: pathlib.Path) -> None:
 load_env_file(ROOT / ".env")
 if os.environ.get("GEMINI_API_KEY") and not os.environ.get("LLM_API_KEY"):
     os.environ["LLM_API_KEY"] = os.environ["GEMINI_API_KEY"]
+try:
+    from dotenv import load_dotenv
+    load_dotenv(APP_DIR.parent / ".env")
+    load_dotenv(APP_DIR / ".env")
+except ImportError:
+    pass
+
 os.environ.setdefault(
     "LLM_BASE_URL",
     "https://generativelanguage.googleapis.com/v1beta/openai",
@@ -225,6 +232,19 @@ TOOLS = [
             }
         ),
     ),
+    gradbot.ToolDef(
+        name="end_call",
+        description="End the call after the caller has said goodbye or confirmed they're done. Call this only AFTER you've spoken your final goodbye line in the same turn — never before. Do not call if the caller still has questions or is mid-thought.",
+        parameters_json=json.dumps(
+            {
+                "type": "object",
+                "properties": {
+                    "reason": {"type": "string", "description": "Short reason e.g. 'caller said goodbye', 'claim closed', 'caller hung up verbally'."},
+                },
+                "additionalProperties": False,
+            }
+        ),
+    ),
 ]
 
 
@@ -249,8 +269,8 @@ def make_config(state: ClaimState, speaks_first: bool = False, speed: float = 1.
         "silence_timeout_s": 0.0,
         "rewrite_rules": "en",
         "padding_bonus": padding_bonus,
-        "flush_duration_s": 0.9,
-        "stt_extra_config": json.dumps({"delay_in_frames": 48}),
+        "flush_duration_s": 0.5,
+        "stt_extra_config": json.dumps({"delay_in_frames": 24}),
         # Probe: try common TTS rate keys. Unknown keys are typically ignored by the underlying engine;
         # if one is honored, perceived speech rate increases above the baked-in voice pace.
         "tts_extra_config": json.dumps({"speed": speed, "speaking_rate": speed, "rate": speed}),
@@ -259,7 +279,7 @@ def make_config(state: ClaimState, speaks_first: bool = False, speed: float = 1.
     kwargs["silence_timeout_s"] = 0.0
     kwargs["flush_duration_s"] = 0.9
     kwargs["padding_bonus"] = padding_bonus
-    kwargs["stt_extra_config"] = json.dumps({"delay_in_frames": 48})
+    kwargs["stt_extra_config"] = json.dumps({"delay_in_frames": 24})
     kwargs["tts_extra_config"] = json.dumps({"speed": speed, "speaking_rate": speed, "rate": speed})
 
     return gradbot.SessionConfig(
@@ -353,6 +373,20 @@ async def on_tool_call(state: ClaimState, handle, input_handle, websocket) -> No
         state.agent_state = args.get("agent_state") or "Claim complete"
         await send_state(websocket, state, "claim_complete")
         await input_handle.send_config(make_config(state))
+        await handle.send_json({"success": True, "state": state.public()})
+        return
+
+    if handle.name == "end_call":
+        reason = args.get("reason") or "agent ended call"
+        state.agent_state = f"Call ended - {reason}"
+        await websocket.send_json(
+            {
+                "type": "event",
+                "event": "call_ended",
+                "reason": reason,
+                "state": state.public(),
+            }
+        )
         await handle.send_json({"success": True, "state": state.public()})
         return
 
@@ -503,4 +537,16 @@ gradbot.routes.setup(
     config=cfg,
     static_dir=APP_DIR / "static",
     with_voices=True,
+)
+
+# Twilio inbound voice bridge — caller dials the Twilio number, audio is bridged
+# into a fresh gradbot session per call.
+import twilio_bridge  # noqa: E402
+
+twilio_bridge.register(
+    app,
+    cfg=cfg,
+    state_factory=ClaimState,
+    config_factory=lambda state: make_config(state, speaks_first=True, speed=1.05),
+    tool_dispatcher=on_tool_call,
 )

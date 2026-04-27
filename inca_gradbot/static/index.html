@@ -860,6 +860,12 @@
         if (raw.event === 'photo_link_sent') agentState.textContent = 'SMS sent - photo link';
         if (raw.event === 'callback_requested') agentState.textContent = 'Callback path triggered';
         if (raw.event === 'claim_complete') agentState.textContent = 'CLAIM COMPLETE';
+        if (raw.event === 'call_ended') {
+          agentState.textContent = 'Call ended by agent';
+          setStatus('Agent ended the call');
+          // Delay so the goodbye line finishes playing before we tear down audio.
+          setTimeout(() => stopCall(true), 4000);
+        }
       }
     }
 
